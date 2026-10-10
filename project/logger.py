@@ -409,7 +409,6 @@ def log_processing_summary(
         active_logger.info(
             f"  共发现 {anomaly_report.get('total', 0)} 项："
             f"负面积 {anomaly_report.get('negative_area', 0)} 项，"
-            f"超过面积阈值 {anomaly_report.get('oversized_area', 0)} 项，"
             f"关键字段均为空 {anomaly_report.get('empty_key_data', 0)} 项",
             extra={_CONSOLE_RECORD_ATTR: True},
         )

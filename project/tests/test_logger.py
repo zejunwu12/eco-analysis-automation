@@ -383,7 +383,6 @@ class LoggerSetupTests(unittest.TestCase):
         anomaly_report = {
             "total": 1,
             "negative_area": 0,
-            "oversized_area": 0,
             "empty_key_data": 1,
             "details": [
                 {

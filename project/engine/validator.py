@@ -108,21 +108,15 @@ def detect_anomalies(
     workbook: Workbook,
     config: dict,
     report_ids: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8),
-    max_area: float = 1_000_000,
     area_columns: dict[int | str, tuple[str, ...] | list[str]] | None = None,
 ) -> dict:
-    """检测写入后数据区中的负面积、超过面积阈值和关键字段为空。
+    """检测写入后数据区中的负面积和关键字段为空。
 
     面积列优先读取 report 配置中的 ``area_columns``，也可以通过
     area_columns 参数显式指定，例如 ``{4: ("C", "D", "E", "F", "G")}``；
     未配置的新报表结构才根据数据区上方表头自动识别。
     本函数只生成报告和日志，不修改工作簿内容。
     """
-    if isinstance(max_area, bool) or not isinstance(max_area, (int, float)):
-        raise TypeError("max_area 必须是正数")
-    if max_area <= 0:
-        raise ValueError("max_area 必须大于 0")
-
     anomalies = []
     scanned_area_cells = 0
     area_column_report = {}
@@ -178,17 +172,6 @@ def detect_anomalies(
                                 "面积字段为负数",
                             )
                         )
-                    elif value > max_area:
-                        anomalies.append(
-                            _make_cell_anomaly(
-                                report_id,
-                                worksheet,
-                                cell.coordinate,
-                                value,
-                                "oversized_area",
-                                f"面积超过阈值 {max_area:g} ㎡",
-                            )
-                        )
 
         area_column_report[report_key] = sorted(detected_columns)
 
@@ -196,9 +179,6 @@ def detect_anomalies(
         "total": len(anomalies),
         "negative_area": sum(
             item["anomaly_type"] == "negative_area" for item in anomalies
-        ),
-        "oversized_area": sum(
-            item["anomaly_type"] == "oversized_area" for item in anomalies
         ),
         "empty_key_data": sum(
             item["anomaly_type"] == "empty_key_data" for item in anomalies
@@ -210,7 +190,6 @@ def detect_anomalies(
     logger.info(
         f"数据完整性和异常值检测完成: 共发现 {summary['total']} 项，"
         f"负面积 {summary['negative_area']} 项，"
-        f"超过面积阈值 {summary['oversized_area']} 项，"
         f"关键字段均为空 {summary['empty_key_data']} 项"
     )
     for anomaly in anomalies:

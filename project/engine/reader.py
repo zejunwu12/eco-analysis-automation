@@ -36,13 +36,21 @@ def load_template(
     if template_path is None:
         configured_path = config["runtime"]["template_path"]
         config_dir = config["runtime"].get("_config_dir", "")
+        # 支持 {quarter_label} 占位符，自动替换为当前季度标签。
+        quarter_label = config.get("quarter", {}).get("label", "")
+        configured_path = configured_path.format(quarter_label=quarter_label)
         # 配置中的模板路径相对于 config.yaml 所在目录。
         full_path = Path(config_dir, configured_path).resolve()
     else:
         if not str(template_path).strip():
             raise ValueError("运行时模板路径不能为空")
+        # 命令行指定的路径也支持 {quarter_label} 占位符。
+        quarter_label = config.get("quarter", {}).get("label", "")
+        resolved_template_path = str(template_path).format(
+            quarter_label=quarter_label
+        )
         # 命令行指定的路径相对于当前命令执行目录。
-        full_path = Path(template_path).expanduser().resolve()
+        full_path = Path(resolved_template_path).expanduser().resolve()
 
     if not full_path.is_file():
         raise FileNotFoundError(f"模板文件不存在: {full_path}")
