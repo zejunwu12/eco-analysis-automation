@@ -208,6 +208,7 @@ reports:
     text_columns: ["B", "C", "U", "V"]
     sub_tables:
       - name: "侨乡文体公司所管理园区"
+        owner: "中侨集团"
         header_row: 3
         data_start_row: 4
         data_end_row: 7
@@ -218,6 +219,7 @@ reports:
           6: "古城新门文旅街区"
           7: "偶遇世界"
       - name: "开元盛达公司所管理侨乡体育中心"
+        owner: "酒管集团"
         header_row: 12
         data_start_row: 13
         data_end_row: 13
@@ -225,6 +227,7 @@ reports:
         row_mapping:
           13: "泉州侨乡体育中心"
       - name: "德化瓷都文投公司所管理红旗坊·文旅产业园"
+        owner: "旅游集团"
         header_row: 17
         data_start_row: 18
         data_end_row: 18
@@ -232,6 +235,7 @@ reports:
         row_mapping:
           18: "红旗坊·文旅产业园"
       - name: "酒管集团所管理园区"
+        owner: "酒管集团"
         header_row: 22
         data_start_row: 23
         data_end_row: 25

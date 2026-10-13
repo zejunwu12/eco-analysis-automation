@@ -46,13 +46,20 @@ def process_report7(
     excluded_owners = excluded_owners or set()
 
     for sub_table in report_config["sub_tables"]:
+        owner_key = sub_table.get("owner")
         for target_row, park_name in sub_table["row_mapping"].items():
-            owner_key, source_ws, source_row = _find_unique_park_source(
+            source = _find_park_source(
                 ownership_data,
                 sheet_name,
                 park_name,
+                owner_key=owner_key,
                 excluded_owners=excluded_owners,
             )
+            if source is None:
+                logger.warning(f"  报表7 园区 '{park_name}': 未找到数据来源，跳过")
+                continue
+
+            owner_key, source_ws, source_row = source
             written_cells = _write_park_row(
                 template_ws,
                 target_row,
@@ -79,6 +86,62 @@ def process_report7(
     validate_merged_ranges(template_ws, merged_ranges_before)
     logger.info(f"报表7汇总完成: {len(results)} 个园区")
     return results
+
+
+def _find_park_source(
+    ownership_data: dict,
+    sheet_name: str,
+    park_name: str,
+    *,
+    owner_key: str | None = None,
+    excluded_owners: set[str] | None = None,
+) -> tuple[str, Worksheet, int] | None:
+    """按配置的权属查找园区数据行。
+
+    配置了 ``owner`` 时只在该权属文件中查找，找不到则返回 None，
+    由调用方警告跳过；未配置 ``owner`` 时回退到唯一来源查找逻辑，
+    多源或无源会抛 ``ParkSourceError``，行为与引入 owner 配置前一致。
+    """
+    if owner_key is not None:
+        excluded = excluded_owners or set()
+        if owner_key in excluded:
+            return None
+        if owner_key not in ownership_data:
+            logger.warning(
+                f"报表7: 权属 '{owner_key}' 未加载，"
+                f"园区 '{park_name}' 跳过"
+            )
+            return None
+        owner_data = ownership_data[owner_key]
+        workbook = owner_data["workbook"]
+        if sheet_name not in workbook.sheetnames:
+            logger.warning(
+                f"报表7: 权属 '{owner_key}' 缺少工作表 '{sheet_name}'，"
+                f"园区 '{park_name}' 跳过"
+            )
+            return None
+        worksheet = workbook[sheet_name]
+        source_row = find_unit_row(
+            worksheet,
+            park_name,
+            col_letter="A",
+            data_start_row=1,
+        )
+        if source_row is None:
+            logger.warning(
+                f"报表7: 权属 '{owner_key}' 中未找到园区 '{park_name}'，跳过"
+            )
+            return None
+        return owner_key, worksheet, source_row
+
+    # 未配置 owner 时，回退到原有的唯一来源查找逻辑；
+    # 多源或无源会抛 ParkSourceError，与配置 owner 之前的行为一致。
+    return _find_unique_park_source(
+        ownership_data,
+        sheet_name,
+        park_name,
+        excluded_owners=excluded_owners,
+    )
 
 
 def _find_unique_park_source(
