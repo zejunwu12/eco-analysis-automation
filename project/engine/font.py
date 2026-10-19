@@ -1,6 +1,7 @@
 """Apply uniform font settings to data areas of the summary workbook."""
 
 import logging
+from copy import copy
 
 from openpyxl.styles import Font
 from openpyxl.utils.cell import column_index_from_string
@@ -16,6 +17,8 @@ def apply_uniform_font(workbook, config: dict) -> int:
 
     仅作用于各报表声明的数据区（含合计行），不影响标题和表头。
     支持按报表编号覆盖全局字体设置。
+    统一内容限于字体名/字号/加粗；单元格原有字体颜色（如来源中用红色
+    标注的“最新调整数据”）会被保留，不会重置为黑色。
 
     Args:
         workbook: 已填充数据的汇总 Workbook
@@ -250,9 +253,12 @@ def _apply_font_range(
 ) -> int:
     """对指定矩形区域内的单元格设置字体。
 
+    仅统一字体名/字号/加粗；单元格原有字体颜色（如红色标注）予以保留，
+    不会被重置为默认黑色。
+
     Args:
         worksheet: 目标工作表
-        font: 目标字体
+        font: 目标字体（仅取其 name/size/bold）
         start_row / end_row: 行范围（含）
         start_col_letter / end_col_letter: 列范围（含），如 "A" / "K"
 
@@ -269,10 +275,30 @@ def _apply_font_range(
     for row in range(start_row, end_row + 1):
         for col in range(start_col, end_col + 1):
             cell = worksheet.cell(row=row, column=col)
-            cell.font = font
+            # 原逻辑：整体替换字体，颜色被重置为默认黑色，
+            # 会抹掉来源中用红色标注的“最新调整数据”等语义颜色，暂注释保留。
+            # cell.font = font
+            # 现逻辑：仅统一字体名/字号/加粗，保留单元格原有颜色。
+            cell.font = _build_uniform_font(font, cell.font)
             count += 1
 
     return count
+
+
+def _build_uniform_font(font: Font, current_font: Font) -> Font:
+    """按统一字体设置生成新字体，但保留单元格原有颜色。
+
+    字体颜色承载语义信息（如红色字体表示最新调整数据），
+    统一字体名/字号/加粗时不应将其重置为默认黑色；
+    颜色缺失时保持默认（黑色），与原逻辑一致。
+    """
+    current_color = current_font.color if current_font is not None else None
+    return Font(
+        name=font.name,
+        size=font.size,
+        bold=font.bold,
+        color=copy(current_color) if current_color is not None else None,
+    )
 
 
 def _find_total_row(

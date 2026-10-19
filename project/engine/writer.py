@@ -1,6 +1,7 @@
 """Data writer with merged cell protection"""
 
 import logging
+from copy import copy
 from dataclasses import dataclass, field
 from openpyxl.cell.cell import Cell, MergedCell
 from openpyxl.worksheet.worksheet import Worksheet
@@ -84,6 +85,8 @@ def write_report_fixed(
     数值列采用“非数值归零”策略：仅数值原样写入，空值、``/`` 等非数值
     均写入 0；``text_columns`` 中的文本列仍保留来源原值。``formula_columns``
     只用于识别公式列，公式内容始终保留模板原值，不由本函数重写。
+    来源单元格的字体会被整体复制到目标单元格（效果同人工粘贴），
+    其中红色等标注颜色随之保留；字体名/字号/加粗由后续统一字体步骤归一化。
 
     Args:
         template_ws: 汇总表模板的工作表
@@ -275,6 +278,7 @@ def write_report_fixed(
                 target_ws=template_ws,
                 stats=comment_stats,
             )
+            copy_source_font(source_cell, target_cell)
             copied_cells += 1
 
         logger.debug(
@@ -329,6 +333,25 @@ def _get_writable_cell(
 def _is_numeric_value(value: object) -> bool:
     """判断来源值是否为可直接写入数值列的数值。"""
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def copy_source_font(source_cell: Cell, target_cell: Cell) -> bool:
+    """将来源单元格的字体整体复制到目标单元格，效果与人工粘贴一致。
+
+    字体颜色承载语义信息（如红色字体表示“最新调整数据”），随字体整体
+    带入汇总表，无需单独处理颜色。字体名/字号/加粗后续仍由统一字体步骤
+    按配置归一化，其余字体属性（颜色、斜体、下划线等）原样保留。
+
+    来源单元格为默认样式（未设置任何字体属性）时不复制，保持目标原样。
+    仅复制字体，不涉及填充、边框、对齐、数字格式，版式仍由模板决定。
+
+    Returns:
+        是否发生了字体复制
+    """
+    if not source_cell.has_style:
+        return False
+    target_cell.font = copy(source_cell.font)
+    return True
 
 
 def _warn_source_difference(

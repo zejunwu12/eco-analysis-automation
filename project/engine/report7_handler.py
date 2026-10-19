@@ -10,6 +10,7 @@ from engine.comments import CommentCopyStats, copy_source_comment
 from engine.matcher import find_unit_row
 from engine.writer import (
     _is_numeric_value,
+    copy_source_font,
     get_merged_ranges,
     validate_merged_ranges,
 )
@@ -221,6 +222,8 @@ def _write_park_row(
     A 列园区名称保持模板值。B:V 中 ``formula_columns`` 跳过写入，
     ``text_columns`` 保留来源原值；其他列仅保留数值，空值、``/`` 和
     其他非数值统一写入 0。数值列即使目标原值是公式，也仍会被覆盖。
+    来源单元格的字体会整体复制到目标单元格（效果同人工粘贴），
+    其中红色等标注颜色随之保留，避免统一字体时丢失该语义信息。
     """
     formula_columns = formula_columns or set()
     text_columns = text_columns or set()
@@ -248,6 +251,7 @@ def _write_park_row(
             target_ws=target_ws,
             stats=comment_stats,
         )
+        copy_source_font(source_cell, target_cell)
         written_cells += 1
     return written_cells
 

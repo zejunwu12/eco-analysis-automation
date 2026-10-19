@@ -7,7 +7,11 @@ from openpyxl.utils.cell import column_index_from_string, get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from engine.comments import CommentCopyStats, copy_source_comment
-from engine.writer import get_merged_ranges, validate_merged_ranges
+from engine.writer import (
+    copy_source_font,
+    get_merged_ranges,
+    validate_merged_ranges,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -295,6 +299,7 @@ def _write_records(
                 target_ws=worksheet,
                 stats=comment_stats,
             )
+            copy_source_font(source_cell, target_cell)
 
 
 def _has_content(value: object) -> bool:
