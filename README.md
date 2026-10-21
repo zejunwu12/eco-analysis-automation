@@ -3,7 +3,8 @@
 > 权属数据：`权属数据/表格/`
 > 项目目录：`project/` 
 > 主入口：`main.py` 
-> 配置文件：`config.yaml`
+> 配置文件：`config_YYYYQn.yaml`（按季度命名，例如 `config_2026Q3.yaml`，存放于 `project/`）
+> 默认配置：`project/config.yaml`；可用 `--config`/`-c` 指定其他配置文件
 
 ## 1. 流程定位
 
@@ -31,11 +32,11 @@
 | 权属数据 | `../权属数据/表格/` | 文件名必须与 `ownership_files.*.file` 精确一致；`~$` 临时文件会被忽略；**每个文件应仅包含该权属单位自身的记录** |
 | 汇总季度 | 命令行参数 | 必填，使用 `YYYYQn` 格式，例如 `2026Q2` |
 | 指定模板 | `--template` / `--temp` | 可选；传入后覆盖配置中的默认模板路径 |
-| 运行配置 | `config.yaml` | 权属文件、单位映射、报表结构、输出路径和运行开关；可跨季度复用 |
+| 运行配置 | `config_YYYYQn.yaml` | 权属文件、单位映射、报表结构、输出路径和运行开关；可跨季度复用。默认读取 `project/config.yaml`，可用 `--config`/`-c` 指定其他文件 |
 
 > **注意：** 每个权属数据文件应仅包含该单位自身的记录。若文件中残留其他单位的数据行，报表 5、8 可能将残留记录误写入汇总表；报表 7 在子表未配置 `owner` 时，会因跨文件查找出现多个有效来源而报错回滚。
 
-所有相对路径均以 `config.yaml` 所在目录为基准解析，而不是以命令行当前目录为基准。
+所有相对路径均以 `config_YYYYQn.yaml` 所在目录（`project/`）为基准解析，而不是以命令行当前目录为基准。
 
 ### 2.2 输出
 
@@ -52,7 +53,7 @@
 |---|---|---|
 | `main.py` | 编排六个阶段、选择报表、报表级回滚、关闭工作簿 | 是 |
 | `generate_next_template.py` | 从经审核的最终汇总表生成下季度模板 | 是 |
-| `config.yaml` | 保存权属、报表结构和运行参数，不保存季度 | 是 |
+| `config_YYYYQn.yaml` | 保存权属、报表结构和运行参数，不保存季度 | 是 |
 | `engine/config_loader.py` | 加载并校验 YAML，建立“单位名称 → 权属”反向索引 | 是 |
 | `engine/period.py` | 校验 `YYYYQn` 参数并生成中文季度、起止日期等期间元数据 | 是 |
 | `engine/next_template.py` | 执行换期、滚转、清空、数据区遗留填充清理、批注清理和结构校验 | 是 |
@@ -74,7 +75,7 @@
 
 ```mermaid
 flowchart TD
-    A[读取并校验 config.yaml] --> B[初始化控制台和文件日志]
+    A[读取并校验 config_YYYYQn.yaml] --> B[初始化控制台和文件日志]
     B --> C[加载汇总模板]
     C --> D[校验模板单位行与配置一致]
     D --> E[清除模板遗留批注]
@@ -280,9 +281,19 @@ flowchart TD
 
 ## 7. 配置文件说明
 
+配置文件按季度命名，规则为 `config_YYYYQn.yaml`（例如 `config_2026Q3.yaml`），统一存放于
+`project/` 目录。两个入口脚本都遵循同一套解析规则：
+
+- **不传 `--config`/`-c` 时**，默认读取入口脚本同目录下的 `config.yaml`（即 `project/config.yaml`）；
+- **传入 `--config`/`-c` 时**，使用指定路径的配置文件，覆盖上述默认值；
+- 配置文件内不保存季度，季度一律由 `--quarter YYYYQn` 提供。
+
+> 若 `project/config.yaml` 尚未创建，不传 `--config` 会直接报“配置文件不存在”，此时需用 `-c`
+> 显式指定当季的 `config_YYYYQn.yaml`。
+
 ### 7.1 汇总季度参数
 
-季度不再写入 `config.yaml`，每次运行必须通过 `--quarter YYYYQn` 提供，例如
+季度不再写入 `config_YYYYQn.yaml`，每次运行必须通过 `--quarter YYYYQn` 提供，例如
 `--quarter 2026Q2`。程序会在内存中生成：
 
 - `code`：标准季度代码，如 `2026Q2`；
@@ -440,16 +451,23 @@ cd "D:\workspace\集团经济分析_表格部分\project"
 python main.py --quarter 2026Q2
 ```
 
+不传 `--config`/`-c` 时，程序默认读取 `main.py` 同目录下的 `config.yaml`；该文件不存在时，改用
+`-c` 显式指定当季配置文件：
+
+```powershell
+python main.py --quarter 2026Q2 --config .\config_2026Q2.yaml
+```
+
 指定其他模板时，运行时参数优先于配置文件：
 
 ```powershell
-python main.py --quarter 2026Q2 --template "D:\path\to\模板.xlsx"
+python main.py --quarter 2026Q2 --config .\config_2026Q2.yaml --template "D:\path\to\模板.xlsx"
 ```
 
-如需使用其他静态配置文件：
+配置文件也可以放在其他位置：
 
 ```powershell
-python main.py --quarter 2026Q2 --config "D:\path\to\config.yaml"
+python main.py --quarter 2026Q2 --config "D:\path\to\config_2026Q2.yaml"
 ```
 
 程序结束后，终端会打印实际汇总文件和日志路径。详细单元格来源、批注和警告应以本次 `summary_*.log` 为准。
@@ -464,18 +482,19 @@ python generate_next_template.py `
   --source "D:\path\to\2026年第二季度最终汇总表.xlsx"
 ```
 
-如使用其他配置文件，增加 `--config`：
+同样地，不传 `--config`/`-c` 时默认读取脚本同目录的 `config.yaml`；使用按季度命名的配置文件时增加
+`--config`：
 
 ```powershell
 python generate_next_template.py `
   --quarter 2026Q2 `
   --source "D:\path\to\2026年第二季度最终汇总表.xlsx" `
-  --config "D:\path\to\config.yaml"
+  --config "D:\path\to\config_2026Q2.yaml"
 ```
 
 程序会自动生成 `2026年第三季度` 模板，并按以下顺序处理：
 
-- **先做配置一致性检查。** 在清空数据、滚转数值、清除样式和保存输出前，先将源汇总表实际结构与 `config.yaml` 对照。固定行报表检查新增单位、配置单位缺失、重复单位、单位行位移、数据区结束行变化和合计行变化；报表5检查左右合计行；报表7按各子表分别检查。
+- **先做配置一致性检查。** 在清空数据、滚转数值、清除样式和保存输出前，先将源汇总表实际结构与 `config_YYYYQn.yaml` 对照。固定行报表检查新增单位、配置单位缺失、重复单位、单位行位移、数据区结束行变化和合计行变化；报表5检查左右合计行；报表7按各子表分别检查。
 - **发现不一致时只检测和提示，不自动修正。** 程序会在终端和 `next_template_*.log` 中一次性打印全部差异，并停止本次生成，不会自动增加单位映射、插入或删除模板行、修改合计行配置，也不会保存半成品模板。
 - 更新标题区及固定报表数据区外说明文字中的季度、截止日期、环比和同比期间；
 - 报表1执行 `D → E`，报表3执行 `C → D`、`F → G`、`I → J`；
@@ -491,7 +510,7 @@ python generate_next_template.py `
 以源汇总表新增“泉旅酒管”为例，若日志提示“新增单位”，先不要直接反复运行或手工修改输出文件。按以下步骤处理：
 
 1. 在源最终汇总表中确认该单位是否确实属于本期正式数据，以及所在报表、行号和合计行位置是否正确。
-2. 如果是合法的组织或版式变化，人工修改 `config.yaml`：补充相应 `ownership_files.*.units`，并在涉及的报表中更新 `row_mapping`；如数据区长度或合计行发生变化，再同步修改 `data_end_row`、`total_row` 或报表7的 `sub_tables`。
+2. 如果是合法的组织或版式变化，人工修改对应的 `config_YYYYQn.yaml`：补充相应 `ownership_files.*.units`，并在涉及的报表中更新 `row_mapping`；如数据区长度或合计行发生变化，再同步修改 `data_end_row`、`total_row` 或报表7的 `sub_tables`。
 3. 如果是源汇总表误填、重复行或临时行，则先修正源最终汇总表，保留配置不变。
 4. 重新执行同一条命令，直到日志显示“源汇总表与配置一致性检查通过”。程序只会在检查通过后继续生成模板。
 5. 生成成功后，人工抽查新增或调整报表的单位顺序、合计行、公式和数据区边界，再将输出模板作为下季度填报模板使用。
@@ -500,7 +519,7 @@ python generate_next_template.py `
 
 ### 8.5 选择部分报表
 
-修改`config.yaml`：
+修改对应的 `config_YYYYQn.yaml`：
 
 ```yaml
 reports_to_run: [1, 4]
