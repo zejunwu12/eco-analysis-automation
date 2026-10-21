@@ -306,6 +306,61 @@ class NextTemplateGenerationTests(unittest.TestCase):
                 source.close()
                 target.close()
 
+    def test_generated_template_unifies_label_and_data_fonts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = self._config(directory)
+            source_path = Path(directory) / "final.xlsx"
+            self._source_workbook(source_path, config)
+
+            # 源汇总表标签列与数据列残留的杂乱字体
+            workbook = load_workbook(source_path)
+            try:
+                report4 = workbook[config["reports"]["report4"]["sheet_name"]]
+                report4["A8"].font = Font(name="仿宋", size=11)
+                report4["B8"].font = Font(name="国标仿宋", size=11)
+                report4["C4"].font = Font(
+                    name="Calibri", size=9, color="FFFF0000"
+                )
+                # 表头样式应原样保留
+                report4["A3"].font = Font(name="黑体", size=12, bold=True)
+                workbook.save(source_path)
+            finally:
+                workbook.close()
+
+            result = generate_next_template(
+                source_path,
+                QuarterContext.parse("2026Q2"),
+                config,
+            )
+
+            target = load_workbook(result.output_path)
+            try:
+                report4 = target[config["reports"]["report4"]["sheet_name"]]
+                report4_config = config["reports"]["report4"]
+                coordinates = (
+                    "A8",
+                    "B8",
+                    f"A{report4_config['total_row']}",
+                    f"C{report4_config['data_start_row']}",
+                    f"K{report4_config['data_start_row']}",
+                )
+                for coordinate in coordinates:
+                    font = report4[coordinate].font
+                    self.assertEqual(font.name, "宋体", coordinate)
+                    self.assertEqual(font.size, 11, coordinate)
+                # 颜色标注（红色）在模板中仍然保留
+                self.assertEqual(
+                    report4[f"C{report4_config['data_start_row']}"].font.color.rgb,
+                    "FFFF0000",
+                )
+                # 表头不纳入统一范围，保持模板原样式
+                header_font = report4["A3"].font
+                self.assertEqual(header_font.name, "黑体")
+                self.assertEqual(header_font.size, 12)
+                self.assertTrue(header_font.bold)
+            finally:
+                target.close()
+
     def test_rejects_source_config_drift_before_writing(self):
         with tempfile.TemporaryDirectory() as directory:
             config = self._config(directory)

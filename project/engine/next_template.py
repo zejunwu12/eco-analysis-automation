@@ -17,6 +17,7 @@ from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from engine.comments import clear_template_comments
+from engine.font import apply_uniform_font
 from engine.output import (
     _build_output_filename,
     _resolve_output_dir,
@@ -155,6 +156,10 @@ def generate_next_template(
         _enable_excel_recalculation(formula_workbook)
         _validate_no_comments(formula_workbook)
         _validate_sanitized_template(formula_workbook, config, rules)
+        # 源汇总表标签列可能遗留仿宋、Calibri 等字体，清空数据并不会改变
+        # 单元格字体；这里按 font 配置统一表体字体，保证下季度模板与
+        # 汇总表字体一致，避免填报时表内字体混杂。
+        unified_font_cells = apply_uniform_font(formula_workbook, config)
 
         save_config = deepcopy(config)
         save_config["quarter"] = target_period.as_config()
@@ -174,7 +179,7 @@ def generate_next_template(
         logger.info(
             "下季度模板生成完成: %s → %s；表头替换 %s 项，滚转 %s 个单元格，"
             "清空 %s 个单元格，清除批注 %s 条，清除遗留填充 %s 处，"
-            "删除明细行 %s 行",
+            "删除明细行 %s 行，统一字体 %s 个单元格",
             current_period.label,
             target_period.label,
             header_replacements,
@@ -183,6 +188,7 @@ def generate_next_template(
             comments_cleared,
             fills_cleared,
             rows_removed,
+            unified_font_cells,
         )
         return NextTemplateResult(
             output_path=output_path,

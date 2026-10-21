@@ -1,4 +1,4 @@
-"""Apply uniform font settings to data areas of the summary workbook."""
+"""Apply uniform font settings to report bodies of the summary workbook."""
 
 import logging
 from copy import copy
@@ -13,9 +13,9 @@ _FIXED_REPORT_IDS = frozenset({1, 2, 3, 4, 6})
 
 
 def apply_uniform_font(workbook, config: dict) -> int:
-    """按报表配置对数据区域应用统一字体。
+    """按报表配置对表体应用统一字体。
 
-    仅作用于各报表声明的数据区（含合计行），不影响标题和表头。
+    作用于各报表的标签列与数据区（含合计行），不影响标题和表头。
     支持按报表编号覆盖全局字体设置。
     统一内容限于字体名/字号/加粗；单元格原有字体颜色（如来源中用红色
     标注的“最新调整数据”）会被保留，不会重置为黑色。
@@ -117,10 +117,18 @@ def _apply_fixed_report(
     report_config: dict,
     font: Font,
 ) -> int:
-    """对固定行数报表的数据区和合计行应用字体。"""
+    """对固定行数报表的标签列、数据区和合计行应用字体。
+
+    标签列（集团名称/单位名称）同属表体：下发空表中这些列可能遗留仿宋、
+    Calibri 等字体，若不一并统一，会出现同一张表内字体混杂
+    （例如报表4 A8“商业集团”为仿宋，同行数据列却是统一字体）。
+    """
     start_row = report_config["data_start_row"]
     end_row = report_config.get("total_row", report_config["data_end_row"])
-    start_col = report_config["data_start_col"]
+    # 原逻辑：只统一数据列，标签列不在统一范围内。
+    # start_col = report_config["data_start_col"]
+    # 现逻辑：统一起点左移到标签列，标签列与数据区、合计行一并统一。
+    start_col = report_config.get("a_col", "A")
     end_col = report_config["data_end_col"]
     return _apply_font_range(worksheet, font, start_row, end_row, start_col, end_col)
 
