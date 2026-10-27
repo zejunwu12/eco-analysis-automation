@@ -165,6 +165,11 @@ def generate_next_template(
         save_config["quarter"] = target_period.as_config()
         save_config["runtime"] = dict(config["runtime"])
         save_config["runtime"]["output_filename"] = rules["output_filename"]
+        # 下季模板输出目录可独立配置；其中的占位符按目标季度展开，
+        # 缺省时回退 runtime.output_dir。
+        save_config["runtime"]["output_dir"] = (
+            rules.get("output_dir") or config["runtime"]["output_dir"]
+        )
         target_path = _resolve_output_dir(save_config) / _build_output_filename(
             save_config
         )
@@ -215,6 +220,11 @@ def _load_rules(config: dict) -> dict:
     report_rules = rules.get("reports")
     if not isinstance(output_filename, str) or not output_filename.strip():
         raise NextTemplateError("next_template.output_filename 必须是非空字符串")
+    output_dir = rules.get("output_dir")
+    if output_dir is not None and (
+        not isinstance(output_dir, str) or not output_dir.strip()
+    ):
+        raise NextTemplateError("next_template.output_dir 必须是非空字符串")
     if not isinstance(report_rules, dict):
         raise NextTemplateError("next_template.reports 必须是字典")
     for report_id in range(1, 9):

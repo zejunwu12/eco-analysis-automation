@@ -13,7 +13,7 @@ from engine.comments import CommentCopyStats, clear_template_comments
 from engine.font import apply_uniform_font
 from engine.header_validator import detect_ownership_header_mismatches
 from engine.output import save_summary_workbook
-from engine.period import QuarterContext, QuarterError
+from engine.period import QuarterContext, QuarterError, expand_path
 from engine.reader import (
     close_ownership_files,
     load_ownership_files,
@@ -62,8 +62,13 @@ def run(
     # Keep the existing downstream interface while making the command-line
     # argument the only persisted source of reporting-period information.
     config["quarter"] = quarter.as_config()
-    output_dir = _resolve_runtime_path(config, config["runtime"]["output_dir"])
-    log_path = setup_logger(config["runtime"]["log_level"], str(output_dir))
+    log_dir_setting = (
+        config["runtime"].get("log_dir") or config["runtime"]["output_dir"]
+    )
+    log_dir = _resolve_runtime_path(
+        config, expand_path(log_dir_setting, quarter)
+    )
+    log_path = setup_logger(config["runtime"]["log_level"], str(log_dir))
 
     workbook = None
     ownership_data = {}

@@ -3,10 +3,13 @@
 import logging
 import os
 from pathlib import Path
+
 import openpyxl
 from openpyxl.utils.cell import column_index_from_string, get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.workbook.workbook import Workbook
+
+from engine.period import QuarterContext, QuarterError, expand_path
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +17,18 @@ logger = logging.getLogger(__name__)
 class TemplateMismatchError(Exception):
     """模板与配置不一致异常"""
     pass
+
+
+def _quarter_context(config: dict) -> QuarterContext | None:
+    """从配置字典重建当前季度上下文，用于路径占位符展开。
+
+    配置未提供季度时返回 None；路径不含占位符时无需季度上下文。
+    """
+    quarter_data = config.get("quarter") or {}
+    code = quarter_data.get("code")
+    if not code:
+        return None
+    return QuarterContext.parse(code)
 
 
 def load_template(
@@ -36,18 +51,18 @@ def load_template(
     if template_path is None:
         configured_path = config["runtime"]["template_path"]
         config_dir = config["runtime"].get("_config_dir", "")
-        # 支持 {quarter_label} 占位符，自动替换为当前季度标签。
-        quarter_label = config.get("quarter", {}).get("label", "")
-        configured_path = configured_path.format(quarter_label=quarter_label)
+        # 支持 {quarter} / {quarter_label} 占位符，按当前季度展开。
+        configured_path = expand_path(
+            configured_path, _quarter_context(config)
+        )
         # 配置中的模板路径相对于 config.yaml 所在目录。
         full_path = Path(config_dir, configured_path).resolve()
     else:
         if not str(template_path).strip():
             raise ValueError("运行时模板路径不能为空")
-        # 命令行指定的路径也支持 {quarter_label} 占位符。
-        quarter_label = config.get("quarter", {}).get("label", "")
-        resolved_template_path = str(template_path).format(
-            quarter_label=quarter_label
+        # 命令行指定的路径同样支持占位符展开。
+        resolved_template_path = expand_path(
+            str(template_path), _quarter_context(config)
         )
         # 命令行指定的路径相对于当前命令执行目录。
         full_path = Path(resolved_template_path).expanduser().resolve()
@@ -509,7 +524,12 @@ def load_ownership_files(config: dict) -> dict:
     config_dir = config["runtime"].get("_config_dir", "")
     data_dir = os.path.abspath(
         os.path.normpath(
-            os.path.join(config_dir, config["runtime"]["data_dir"])
+            os.path.join(
+                config_dir,
+                expand_path(
+                    config["runtime"]["data_dir"], _quarter_context(config)
+                ),
+            )
         )
     )
 

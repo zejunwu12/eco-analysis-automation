@@ -7,7 +7,7 @@ import sys
 
 from engine.config_loader import ConfigLoader
 from engine.next_template import NextTemplateConsistencyError, generate_next_template
-from engine.period import QuarterContext, QuarterError
+from engine.period import QuarterContext, QuarterError, expand_path
 from logger import setup_logger
 
 
@@ -38,7 +38,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "-s",
         required=True,
         type=Path,
-        help="当前季度经审核的最终汇总表路径",
+        help="当前季度经审核的最终汇总表路径（必填）",
     )
     parser.add_argument(
         "--config",
@@ -67,19 +67,21 @@ def run(
     )
     config = ConfigLoader(str(resolved_config)).load()
     runtime = config["runtime"]
-    output_dir = (
-        Path(runtime["_config_dir"]) / runtime["output_dir"]
+    log_dir_setting = runtime.get("log_dir") or runtime["output_dir"]
+    log_dir = (
+        Path(runtime["_config_dir"])
+        / expand_path(log_dir_setting, current_period)
     ).resolve()
     log_path = setup_logger(
         runtime.get("log_level", "INFO"),
-        str(output_dir),
+        str(log_dir),
         file_prefix="next_template",
     )
 
     logger.info("源季度: %s", current_period.label)
     logger.info("目标季度: %s", current_period.next().label)
-    logger.info("源最终汇总表: %s", Path(source_path).expanduser().resolve())
     logger.info("配置文件: %s", resolved_config)
+    logger.info("源最终汇总表: %s", Path(source_path).expanduser().resolve())
     result = generate_next_template(source_path, current_period, config)
     return {
         "output_path": result.output_path,

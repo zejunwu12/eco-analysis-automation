@@ -23,6 +23,12 @@ __pycache__/
 # data
 权属数据/
 
+# v4 目录结构中的业务数据（xlsx / log 已由上方规则覆盖，此处显式声明）
+templates/
+data/
+results/
+logs/
+
 # 项目规划
 .\0.经济分析表结构分析.md
 .\1.集团经济分析自动化需求分析.md

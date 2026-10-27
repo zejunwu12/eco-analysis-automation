@@ -87,3 +87,43 @@ class QuarterContext:
             "start_date": self.start_date,
             "end_date": self.end_date,
         }
+
+
+_PLACEHOLDER_PATTERN = re.compile(r"\{(\w+)\}")
+
+
+def expand_path(template: str, quarter: "QuarterContext | None") -> str:
+    """Expand ``{quarter}`` / ``{quarter_label}`` placeholders in a path.
+
+    Args:
+        template: 配置中的路径模板，可含 ``{quarter}``（如 ``2026Q3``）与
+            ``{quarter_label}``（如 ``2026年第三季度``）占位符；不含占位符时
+            原样返回。
+        quarter: 提供占位符取值的季度上下文；模板不含占位符时允许为 None。
+
+    Returns:
+        展开后的路径字符串。
+
+    Raises:
+        QuarterError: 模板不是字符串、含未知占位符，或含占位符但未提供
+            季度上下文。
+    """
+    if not isinstance(template, str):
+        raise QuarterError(f"路径配置必须是字符串: {template!r}")
+
+    def _replace(match: "re.Match[str]") -> str:
+        key = match.group(1)
+        if quarter is None:
+            raise QuarterError(
+                f"路径 '{template}' 含占位符 {{{key}}}，但未提供季度上下文"
+            )
+        if key == "quarter":
+            return quarter.code
+        if key == "quarter_label":
+            return quarter.label
+        raise QuarterError(
+            f"路径包含未知占位符 {{{key}}}；"
+            "仅支持 {quarter} 与 {quarter_label}"
+        )
+
+    return _PLACEHOLDER_PATTERN.sub(_replace, template)

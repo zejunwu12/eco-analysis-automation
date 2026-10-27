@@ -9,6 +9,8 @@ from pathlib import Path
 
 from openpyxl.workbook.workbook import Workbook
 
+from engine.period import QuarterContext, QuarterError, expand_path
+
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +73,23 @@ def _resolve_output_dir(config: dict) -> Path:
         raise OutputSaveError("runtime.output_dir 必须是非空路径")
 
     config_dir = runtime.get("_config_dir", ".")
-    return (Path(config_dir) / configured_dir).resolve()
+    expanded_dir = expand_path(configured_dir, _output_quarter(config))
+    return (Path(config_dir) / expanded_dir).resolve()
+
+
+def _output_quarter(config: dict) -> QuarterContext | None:
+    """重建输出所属季度；生成下季模板时传入的是目标季度。
+
+    配置未提供季度时返回 None；仅当输出目录含占位符时才需要。
+    """
+    quarter_data = config.get("quarter") or {}
+    code = quarter_data.get("code")
+    if not code:
+        return None
+    try:
+        return QuarterContext.parse(code)
+    except QuarterError as exc:
+        raise OutputSaveError(f"季度标识无效: {code!r}") from exc
 
 
 def _build_output_filename(config: dict) -> str:

@@ -234,7 +234,7 @@ class LoggerSetupTests(unittest.TestCase):
 
                 for output_text in (console_text, file_text):
                     self.assertIn(
-                        "[条目增减检测] 新增 1 项，减少 1 项",
+                        "[条目增减检测] 权属表相对于配置/模板 新增 1 项，减少 1 项",
                         output_text,
                     )
                     self.assertIn("单位：'泉旅酒管'｜源表第7行", output_text)
